@@ -1,16 +1,16 @@
 # CpuInfo
 
-**TODO: Add description**
+**CpuInfo:** get CPU information, including a type, number of processors, number of physical cores and logical threads of a processor, and status of simultaneous multi-threads (hyper-threading).
 
 ## Installation
 
-If [available in Hex](https://hex.pm/docs/publish), the package can be installed
+This package can be installed
 by adding `cpu_info` to your list of dependencies in `mix.exs`:
 
 ```elixir
 def deps do
   [
-    {:cpu_info, "~> 0.1.0"}
+    {:cpu_info, "~> 0.0.1"}
   ]
 end
 ```
