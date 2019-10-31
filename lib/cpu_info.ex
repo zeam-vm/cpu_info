@@ -113,13 +113,13 @@ defmodule CpuInfo do
 
     kernel_release =
       case System.cmd("uname", ["-r"]) do
-        {result, 0} -> result
+        {result, 0} -> result |> String.trim()
         _ -> raise RuntimeError, message: "uname don't work."
       end
 
     cpu_type =
       case System.cmd("uname", ["-p"]) do
-        {result, 0} -> result
+        {result, 0} -> result |> String.trim()
         _ -> raise RuntimeError, message: "uname don't work."
       end
 
