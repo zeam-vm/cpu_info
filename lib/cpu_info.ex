@@ -9,7 +9,12 @@ defmodule CpuInfo do
   end
 
   def cpu_type do
-    os_type() |> cpu_type_sub()
+    os_type()
+    |> cpu_type_sub()
+    |> Map.merge(%{
+      otp_version: :erlang.system_info(:otp_release),
+      elixir_version: System.version()
+    })
   end
 
   def confirm_executable(command) do
