@@ -34,7 +34,7 @@ defmodule CpuInfo do
     system_version =
       case System.cmd("cat", ["/etc/issue"]) do
         {result, 0} -> result |> String.trim()
-        _ -> raise RuntimeError, message: "uname don't work."
+        _ -> ""
       end
 
     kernel_version =
