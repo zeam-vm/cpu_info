@@ -12,7 +12,7 @@ defmodule CpuInfo do
     os_type()
     |> cpu_type_sub()
     |> Map.merge(%{
-      otp_version: :erlang.system_info(:otp_release),
+      otp_version: :erlang.system_info(:otp_release) |> List.to_string |> String.to_integer(),
       elixir_version: System.version()
     })
   end
