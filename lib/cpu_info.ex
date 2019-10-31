@@ -80,7 +80,7 @@ defmodule CpuInfo do
       end
 
     cpu_type =
-      case System.cmd("uname", ["-p"]) do
+      case System.cmd("uname", ["-m"]) do
         {result, 0} -> result |> String.trim()
         _ -> raise RuntimeError, message: "uname don't work."
       end
@@ -154,7 +154,7 @@ defmodule CpuInfo do
       end
 
     cpu_type =
-      case System.cmd("uname", ["-p"]) do
+      case System.cmd("uname", ["-m"]) do
         {result, 0} -> result |> String.trim()
         _ -> raise RuntimeError, message: "uname don't work."
       end
