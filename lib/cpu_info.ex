@@ -1,4 +1,10 @@
 defmodule CpuInfo do
+  @moduledoc """
+
+  **CpuInfo:** get CPU information, including a type, number of processors, number of physical cores and logical threads of a processor, and status of simultaneous multi-threads (hyper-threading).
+
+  """
+
   def os_type do
     case :os.type() do
       {:unix, :linux} -> :linux
@@ -8,6 +14,9 @@ defmodule CpuInfo do
     end
   end
 
+  @doc """
+    Show all profile information on CPU and the system.
+  """
   def all_profile do
     os_type()
     |> cpu_type_sub()
