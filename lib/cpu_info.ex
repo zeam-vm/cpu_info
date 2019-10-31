@@ -8,7 +8,7 @@ defmodule CpuInfo do
     end
   end
 
-  def cpu_type do
+  def all_profile do
     os_type()
     |> cpu_type_sub()
     |> Map.merge(%{
