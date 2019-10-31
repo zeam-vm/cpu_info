@@ -222,10 +222,10 @@ defmodule CpuInfo do
 
     num_of_cores_of_a_processor = div(total_num_of_cores, num_of_processors)
 
-    m_ht = Enum.filter(trimmed_message, &String.match?(&1, ~r/Hyper-Threading Technology/)) |> hd
+    m_ht = Enum.filter(trimmed_message, &String.match?(&1, ~r/Hyper-Threading Technology/))
 
     ht =
-      if String.match?(m_ht, ~r/Enabled/) do
+      if length(m_ht) > 0 and String.match?(hd(m_ht), ~r/Enabled/) do
         :enabled
       else
         :disabled
