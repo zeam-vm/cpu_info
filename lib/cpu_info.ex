@@ -5,7 +5,7 @@ defmodule CpuInfo do
 
   """
 
-  def os_type do
+  defp os_type do
     case :os.type() do
       {:unix, :linux} -> :linux
       {:unix, :darwin} -> :macos
@@ -21,12 +21,12 @@ defmodule CpuInfo do
     os_type()
     |> cpu_type_sub()
     |> Map.merge(%{
-      otp_version: :erlang.system_info(:otp_release) |> List.to_string |> String.to_integer(),
+      otp_version: :erlang.system_info(:otp_release) |> List.to_string() |> String.to_integer(),
       elixir_version: System.version()
     })
   end
 
-  def confirm_executable(command) do
+  defp confirm_executable(command) do
     if is_nil(System.find_executable(command)) do
       raise RuntimeError, message: "#{command} isn't found."
     end
