@@ -5,6 +5,7 @@ defmodule CpuInfo do
   		{:unix, :linux} -> :linux
   		{:unix, :darwin} -> :macos
   		{:win32, _} -> :windows
+  		_ -> :other
   	end
   end
 
