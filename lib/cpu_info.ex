@@ -18,6 +18,42 @@ defmodule CpuInfo do
     end
   end
 
+  defp cpu_type_sub(:other) do
+    %{
+      kernel_release: :unknown,
+      kernel_version: :unknown,
+      system_version: :unknown,
+      cpu_type: :unknown,
+      os_type: :other,
+      cpu_model: :unknown,
+      cpu_models: :unknown,
+      num_of_processors: :unknown,
+      num_of_cores_of_a_processor: :unknown,
+      total_num_of_cores: :unknown,
+      num_of_threads_of_a_processor: :unknown,
+      total_num_of_threads: System.schedulers_online(),
+      hyper_threading: :unknown
+    }
+  end
+
+  defp cpu_type_sub(:windows) do
+    %{
+      kernel_release: :unknown,
+      kernel_version: :unknown,
+      system_version: :unknown,
+      cpu_type: :unknown,
+      os_type: :windows,
+      cpu_model: :unknown,
+      cpu_models: :unknown,
+      num_of_processors: :unknown,
+      num_of_cores_of_a_processor: :unknown,
+      total_num_of_cores: :unknown,
+      num_of_threads_of_a_processor: :unknown,
+      total_num_of_threads: System.schedulers_online(),
+      hyper_threading: :unknown
+    }
+  end
+
   defp cpu_type_sub(:linux) do
     confirm_executable("cat")
     confirm_executable("grep")
