@@ -20,6 +20,9 @@ defmodule CpuInfo.MixProject do
 
   # Run "mix help deps" to learn about dependencies.
   defp deps do
-    []
+    [
+      {:earmark, "~> 1.4", only: :dev},
+      {:ex_doc, "~> 0.21", only: :dev}
+    ]
   end
 end
