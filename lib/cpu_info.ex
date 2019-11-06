@@ -69,19 +69,25 @@ defmodule CpuInfo do
   end
 
   defp cpu_type_sub(:linux) do
-    kernel_release =
+    kernel_release = try do
       case System.cmd("uname", ["-r"]) do
         {result, 0} -> result |> String.trim()
         _ -> nil
       end
+    rescue
+      _e in ErlangError -> nil
+    end
 
     system_version = File.read!("/etc/issue") |> String.trim()
 
-    kernel_version =
+    kernel_version = try do
       case System.cmd("uname", ["-v"]) do
         {result, 0} -> result |> String.trim()
         _ -> nil
       end
+    rescue
+      _e in ErlangError -> nil
+    end
 
     cpu_type =
       :erlang.system_info(:system_architecture) |> List.to_string() |> String.split("-") |> hd
@@ -153,32 +159,46 @@ defmodule CpuInfo do
     confirm_executable("uname")
     confirm_executable("system_profiler")
 
-    kernel_release =
+    kernel_release = try do
       case System.cmd("uname", ["-r"]) do
         {result, 0} -> result |> String.trim()
-        _ -> raise RuntimeError, message: "uname don't work."
+        _ -> nil
       end
+    rescue
+      _e in ErlangError -> nil
+    end
 
-    cpu_type =
+    cpu_type = try do
       case System.cmd("uname", ["-m"]) do
         {result, 0} -> result |> String.trim()
-        _ -> raise RuntimeError, message: "uname don't work."
+        _ -> nil
       end
+    rescue
+      _e in ErlangError -> nil
+    end
 
     %{
       kernel_release: kernel_release,
       cpu_type: cpu_type
     }
     |> Map.merge(
-      case System.cmd("system_profiler", ["SPSoftwareDataType"]) do
-        {result, 0} -> result |> detect_system_and_kernel_version()
-        _ -> raise RuntimeError, message: "uname don't work."
+      try do
+        case System.cmd("system_profiler", ["SPSoftwareDataType"]) do
+          {result, 0} -> result |> detect_system_and_kernel_version()
+          _ -> nil
+        end
+      rescue
+        _e in ErlangError -> nil
       end
     )
     |> Map.merge(
-      case System.cmd("system_profiler", ["SPHardwareDataType"]) do
-        {result, 0} -> result |> parse_macos
-        _ -> raise RuntimeError, message: "system_profiler don't work."
+      try do
+        case System.cmd("system_profiler", ["SPHardwareDataType"]) do
+          {result, 0} -> result |> parse_macos
+          _ -> nil
+        end
+      rescue
+        _e in ErlangError -> nil
       end
     )
   end
