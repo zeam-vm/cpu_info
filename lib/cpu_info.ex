@@ -97,7 +97,7 @@ defmodule CpuInfo do
   		|> Map.new()
 	end)
 
-    cpu_models = Enum.map(info, & Map.get(&1, "model name"))
+    cpu_models = Enum.map(info, & Map.get(&1, "model name")) |> List.flatten
 
     cpu_model = hd(cpu_models)
 
