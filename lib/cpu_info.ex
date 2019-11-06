@@ -69,67 +69,59 @@ defmodule CpuInfo do
   end
 
   defp cpu_type_sub(:linux) do
-    confirm_executable("cat")
-    confirm_executable("grep")
-    confirm_executable("sort")
-    confirm_executable("wc")
-    confirm_executable("uname")
-
     kernel_release =
       case System.cmd("uname", ["-r"]) do
         {result, 0} -> result |> String.trim()
-        _ -> raise RuntimeError, message: "uname don't work."
+        _ -> nil
       end
 
-    system_version =
-      case System.cmd("cat", ["/etc/issue"]) do
-        {result, 0} -> result |> String.trim()
-        _ -> ""
-      end
+    system_version = File.read!("/etc/issue") |> String.trim()
 
     kernel_version =
       case System.cmd("uname", ["-v"]) do
         {result, 0} -> result |> String.trim()
-        _ -> raise RuntimeError, message: "uname don't work."
+        _ -> nil
       end
 
     cpu_type =
-      case System.cmd("uname", ["-m"]) do
-        {result, 0} -> result |> String.trim()
-        _ -> raise RuntimeError, message: "uname don't work."
-      end
+      :erlang.system_info(:system_architecture) |> List.to_string() |> String.split("-") |> hd
 
-    cpu_models =
-      :os.cmd('grep model.name /proc/cpuinfo | sort -u')
-      |> List.to_string()
-      |> String.split("\n")
-      |> Enum.map(&String.trim(&1))
-      |> Enum.reject(&(String.length(&1) == 0))
-      |> Enum.map(&String.split(&1))
-      |> Enum.map(&Enum.slice(&1, 3..-1))
-      |> Enum.map(&Enum.join(&1, " "))
+    info =
+      File.read!("/proc/cpuinfo")
+      |> String.split("\n\n")
+      # drop last (emtpy) item
+      |> Enum.reverse()
+      |> tl()
+      |> Enum.reverse()
+      |> Enum.map(fn cpuinfo ->
+        String.split(cpuinfo, "\n")
+        |> Enum.map(fn item ->
+          [k | v] = String.split(item, ~r"\t+: ")
+          {k, v}
+        end)
+        |> Map.new()
+      end)
+
+    cpu_models = Enum.map(info, &Map.get(&1, "model name")) |> List.flatten()
 
     cpu_model = hd(cpu_models)
 
     num_of_processors =
-      :os.cmd('grep physical.id /proc/cpuinfo | sort -u | wc -l')
-      |> List.to_string()
-      |> String.trim()
-      |> String.to_integer()
+      Enum.map(info, &Map.get(&1, "physical id"))
+      |> Enum.uniq()
+      |> Enum.count()
 
-    num_of_cores_of_a_processor =
-      :os.cmd('grep cpu.cores /proc/cpuinfo | sort -u')
-      |> List.to_string()
-      |> String.trim()
-      |> match_to_integer()
+    total_num_of_cores =
+      Enum.map(info, &Map.get(&1, "cpu cores"))
+      |> Enum.uniq()
+      |> Enum.map(&(&1 |> hd |> String.to_integer()))
+      |> Enum.sum()
 
-    total_num_of_cores = num_of_cores_of_a_processor * num_of_processors
+    num_of_cores_of_a_processor = div(total_num_of_cores, num_of_processors)
 
     total_num_of_threads =
-      :os.cmd('grep processor /proc/cpuinfo | wc -l')
-      |> List.to_string()
-      |> String.trim()
-      |> String.to_integer()
+      Enum.map(info, &Map.get(&1, "processor"))
+      |> Enum.count()
 
     num_of_threads_of_a_processor = div(total_num_of_threads, num_of_processors)
 
