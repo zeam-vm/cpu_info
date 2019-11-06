@@ -75,7 +75,7 @@ defmodule CpuInfo do
         _ -> nil
       end
 
-    system_version = File.read!("/etc/issue") |> String.trim
+    system_version = File.read!("/etc/issue") |> String.trim()
 
     kernel_version =
       case System.cmd("uname", ["-v"]) do
@@ -83,38 +83,45 @@ defmodule CpuInfo do
         _ -> nil
       end
 
-    cpu_type = :erlang.system_info(:system_architecture) |> List.to_string |> String.split("-") |> hd
+    cpu_type =
+      :erlang.system_info(:system_architecture) |> List.to_string() |> String.split("-") |> hd
 
-    info = File.read!("/proc/cpuinfo")
-	|> String.split("\n\n")
-	|> Enum.reverse() |> tl() |> Enum.reverse() # drop last (emtpy) item
-	|> Enum.map(fn cpuinfo ->
-		String.split(cpuinfo, "\n")
-  		|> Enum.map(fn item ->
-    		[k | v] = String.split(item, ~r"\t+: ")
-    		{k, v}
- 		end)
-  		|> Map.new()
-	end)
+    info =
+      File.read!("/proc/cpuinfo")
+      |> String.split("\n\n")
+      # drop last (emtpy) item
+      |> Enum.reverse()
+      |> tl()
+      |> Enum.reverse()
+      |> Enum.map(fn cpuinfo ->
+        String.split(cpuinfo, "\n")
+        |> Enum.map(fn item ->
+          [k | v] = String.split(item, ~r"\t+: ")
+          {k, v}
+        end)
+        |> Map.new()
+      end)
 
-    cpu_models = Enum.map(info, & Map.get(&1, "model name")) |> List.flatten
+    cpu_models = Enum.map(info, &Map.get(&1, "model name")) |> List.flatten()
 
     cpu_model = hd(cpu_models)
 
-    num_of_processors = Enum.map(info, &Map.get(&1, "physical id"))
-    |> Enum.uniq
-    |> Enum.count 
+    num_of_processors =
+      Enum.map(info, &Map.get(&1, "physical id"))
+      |> Enum.uniq()
+      |> Enum.count()
 
-
-    total_num_of_cores = Enum.map(info, &Map.get(&1, "cpu cores"))
-    |> Enum.uniq
-    |> Enum.map(& &1 |> hd |> String.to_integer)
-    |> Enum.sum
+    total_num_of_cores =
+      Enum.map(info, &Map.get(&1, "cpu cores"))
+      |> Enum.uniq()
+      |> Enum.map(&(&1 |> hd |> String.to_integer()))
+      |> Enum.sum()
 
     num_of_cores_of_a_processor = div(total_num_of_cores, num_of_processors)
 
-    total_num_of_threads = Enum.map(info, &Map.get(&1, "processor"))
-    |> Enum.count
+    total_num_of_threads =
+      Enum.map(info, &Map.get(&1, "processor"))
+      |> Enum.count()
 
     num_of_threads_of_a_processor = div(total_num_of_threads, num_of_processors)
 
