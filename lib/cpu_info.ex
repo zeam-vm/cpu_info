@@ -72,7 +72,7 @@ defmodule CpuInfo do
     kernel_release = try do
       case System.cmd("uname", ["-r"]) do
         {result, 0} -> result |> String.trim()
-        _ -> nil
+        _ -> :os.version |> Tuple.to_list |> Enum.join(".")
       end
     rescue
       _e in ErlangError -> nil
@@ -165,7 +165,7 @@ defmodule CpuInfo do
     kernel_release = try do
       case System.cmd("uname", ["-r"]) do
         {result, 0} -> result |> String.trim()
-        _ -> nil
+        _ -> :os.version |> Tuple.to_list |> Enum.join(".")
       end
     rescue
       _e in ErlangError -> nil
