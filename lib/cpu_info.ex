@@ -78,7 +78,10 @@ defmodule CpuInfo do
       _e in ErlangError -> nil
     end
 
-    system_version = File.read!("/etc/issue") |> String.trim()
+    system_version = case File.read("/etc/issue") do
+      {:ok, result} -> result |> String.trim()
+      _ -> nil
+    end
 
     kernel_version = try do
       case System.cmd("uname", ["-v"]) do
