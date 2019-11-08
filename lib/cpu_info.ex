@@ -69,19 +69,28 @@ defmodule CpuInfo do
   end
 
   defp cpu_type_sub(:linux) do
-    kernel_release =
+    kernel_release = try do
       case System.cmd("uname", ["-r"]) do
         {result, 0} -> result |> String.trim()
-        _ -> nil
+        _ -> :os.version |> Tuple.to_list |> Enum.join(".")
       end
+    rescue
+      _e in ErlangError -> nil
+    end
 
-    system_version = File.read!("/etc/issue") |> String.trim()
+    system_version = case File.read("/etc/issue") do
+      {:ok, result} -> result |> String.trim()
+      _ -> nil
+    end
 
-    kernel_version =
+    kernel_version = try do
       case System.cmd("uname", ["-v"]) do
         {result, 0} -> result |> String.trim()
         _ -> nil
       end
+    rescue
+      _e in ErlangError -> nil
+    end
 
     cpu_type =
       :erlang.system_info(:system_architecture) |> List.to_string() |> String.split("-") |> hd
@@ -111,11 +120,13 @@ defmodule CpuInfo do
       |> Enum.uniq()
       |> Enum.count()
 
-    total_num_of_cores =
+    t =
       Enum.map(info, &Map.get(&1, "cpu cores"))
       |> Enum.uniq()
+      |> Enum.reject(& is_nil(&1))
       |> Enum.map(&(&1 |> hd |> String.to_integer()))
       |> Enum.sum()
+    total_num_of_cores = if t == 0, do: 1, else: t
 
     num_of_cores_of_a_processor = div(total_num_of_cores, num_of_processors)
 
@@ -153,32 +164,46 @@ defmodule CpuInfo do
     confirm_executable("uname")
     confirm_executable("system_profiler")
 
-    kernel_release =
+    kernel_release = try do
       case System.cmd("uname", ["-r"]) do
         {result, 0} -> result |> String.trim()
-        _ -> raise RuntimeError, message: "uname don't work."
+        _ -> :os.version |> Tuple.to_list |> Enum.join(".")
       end
+    rescue
+      _e in ErlangError -> nil
+    end
 
-    cpu_type =
+    cpu_type = try do
       case System.cmd("uname", ["-m"]) do
         {result, 0} -> result |> String.trim()
-        _ -> raise RuntimeError, message: "uname don't work."
+        _ -> nil
       end
+    rescue
+      _e in ErlangError -> nil
+    end
 
     %{
       kernel_release: kernel_release,
       cpu_type: cpu_type
     }
     |> Map.merge(
-      case System.cmd("system_profiler", ["SPSoftwareDataType"]) do
-        {result, 0} -> result |> detect_system_and_kernel_version()
-        _ -> raise RuntimeError, message: "uname don't work."
+      try do
+        case System.cmd("system_profiler", ["SPSoftwareDataType"]) do
+          {result, 0} -> result |> detect_system_and_kernel_version()
+          _ -> nil
+        end
+      rescue
+        _e in ErlangError -> nil
       end
     )
     |> Map.merge(
-      case System.cmd("system_profiler", ["SPHardwareDataType"]) do
-        {result, 0} -> result |> parse_macos
-        _ -> raise RuntimeError, message: "system_profiler don't work."
+      try do
+        case System.cmd("system_profiler", ["SPHardwareDataType"]) do
+          {result, 0} -> result |> parse_macos
+          _ -> nil
+        end
+      rescue
+        _e in ErlangError -> nil
       end
     )
   end
