@@ -120,12 +120,13 @@ defmodule CpuInfo do
       |> Enum.uniq()
       |> Enum.count()
 
-    total_num_of_cores =
+    t =
       Enum.map(info, &Map.get(&1, "cpu cores"))
       |> Enum.uniq()
       |> Enum.reject(& is_nil(&1))
       |> Enum.map(&(&1 |> hd |> String.to_integer()))
       |> Enum.sum()
+    total_num_of_cores = if t == 0, do: 1, else: t
 
     num_of_cores_of_a_processor = div(total_num_of_cores, num_of_processors)
 
