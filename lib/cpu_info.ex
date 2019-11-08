@@ -9,6 +9,7 @@ defmodule CpuInfo do
     case :os.type() do
       {:unix, :linux} -> :linux
       {:unix, :darwin} -> :macos
+      {:unix, :freebsd} -> :freebsd
       {:win32, _} -> :windows
       _ -> :other
     end
@@ -155,6 +156,78 @@ defmodule CpuInfo do
       num_of_cores_of_a_processor: num_of_cores_of_a_processor,
       total_num_of_cores: total_num_of_cores,
       num_of_threads_of_a_processor: num_of_threads_of_a_processor,
+      total_num_of_threads: total_num_of_threads,
+      hyper_threading: ht
+    }
+  end
+
+  defp cpu_type_sub(:freebsd) do
+    confirm_executable("uname")
+    confirm_executable("sysctl")
+
+    kernel_release =
+      case System.cmd("uname", ["-r"]) do
+        {result, 0} -> result |> String.trim()
+        _ -> raise RuntimeError, message: "uname don't work."
+      end
+
+    system_version =
+      case System.cmd("uname", ["-r"]) do
+        {result, 0} -> result |> String.trim()
+        _ -> ""
+      end
+
+    kernel_version =
+      case System.cmd("uname", ["-r"]) do
+        {result, 0} -> result |> String.trim()
+        _ -> raise RuntimeError, message: "uname don't work."
+      end
+
+    cpu_type =
+      case System.cmd("uname", ["-m"]) do
+        {result, 0} -> result |> String.trim()
+        _ -> raise RuntimeError, message: "uname don't work."
+      end
+
+    cpu_model =
+      case System.cmd("sysctl", ["-n", "hw.model"]) do
+        {result, 0} -> result |> String.trim()
+        _ -> raise RuntimeError, message: "sysctl don't work."
+      end
+
+    cpu_models = [cpu_model]
+
+    total_num_of_cores =
+      case System.cmd("sysctl", ["-n", "kern.smp.cores"]) do
+        {result, 0} -> result |> String.trim() |> String.to_integer()
+        _ -> raise RuntimeError, message: "sysctl don't work."
+      end
+
+    total_num_of_threads =
+      case System.cmd("sysctl", ["-n", "kern.smp.cpus"]) do
+        {result, 0} -> result |> String.trim() |> String.to_integer()
+        _ -> raise RuntimeError, message: "sysctl don't work."
+      end
+
+    ht =
+      case System.cmd("sysctl", ["-n", "machdep.hyperthreading_allowed"]) do
+        {"1\n", 0} -> :enabled
+        {"0\n", 0} -> :disabled
+        _ -> raise RuntimeError, message: "sysctl don't work."
+      end
+
+    %{
+      kernel_release: kernel_release,
+      kernel_version: kernel_version,
+      system_version: system_version,
+      cpu_type: cpu_type,
+      os_type: :freebsd,
+      cpu_model: cpu_model,
+      cpu_models: cpu_models,
+      num_of_processors: :unknown,
+      num_of_cores_of_a_processor: :unknown,
+      total_num_of_cores: total_num_of_cores,
+      num_of_threads_of_a_processor: :unknown,
       total_num_of_threads: total_num_of_threads,
       hyper_threading: ht
     }
