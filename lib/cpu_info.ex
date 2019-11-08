@@ -69,27 +69,23 @@ defmodule CpuInfo do
   end
 
   defp cpu_type_sub(:linux) do
-    kernel_release = try do
-      case System.cmd("uname", ["-r"]) do
-        {result, 0} -> result |> String.trim()
-        _ -> :os.version |> Tuple.to_list |> Enum.join(".")
-      end
-    rescue
-      _e in ErlangError -> nil
-    end
+    os_info = File.read!("/etc/os-release")
+    |> String.split("\n")
+    |> Enum.reverse |> tl |> Enum.reverse
+    |> Enum.map(& String.split(&1, "="))
+    |> Enum.map(fn [k, v] -> {k, v |> String.trim("\"")} end)
+    |> Map.new()
 
-    system_version = case File.read("/etc/issue") do
-      {:ok, result} -> result |> String.trim()
+    kernel_release = case File.read("/proc/sys/kernel/osrelease") do
+      {:ok, result} -> result
       _ -> nil
     end
 
-    kernel_version = try do
-      case System.cmd("uname", ["-v"]) do
-        {result, 0} -> result |> String.trim()
-        _ -> nil
-      end
-    rescue
-      _e in ErlangError -> nil
+    system_version = Map.get(os_info, "PRETTY_NAME")
+
+    kernel_version = case File.read("/proc/sys/kernel/version") do
+      {:ok, result} -> result
+      _ -> nil
     end
 
     cpu_type =
