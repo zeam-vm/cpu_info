@@ -123,6 +123,7 @@ defmodule CpuInfo do
     total_num_of_cores =
       Enum.map(info, &Map.get(&1, "cpu cores"))
       |> Enum.uniq()
+      |> Enum.reject(& is_nil(&1))
       |> Enum.map(&(&1 |> hd |> String.to_integer()))
       |> Enum.sum()
 
