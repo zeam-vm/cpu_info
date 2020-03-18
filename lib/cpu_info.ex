@@ -19,12 +19,17 @@ defmodule CpuInfo do
     Show all profile information on CPU and the system.
   """
   def all_profile do
-    os_type()
-    |> cpu_type_sub()
-    |> Map.merge(%{
+    os_type = os_type()
+    cpu_type = os_type |> cpu_type_sub()
+    cuda_info = os_type |> cuda()
+
+    elixir_version = %{
       otp_version: :erlang.system_info(:otp_release) |> List.to_string() |> String.to_integer(),
       elixir_version: System.version()
-    })
+    }
+
+    Map.merge(cpu_type, cuda_info)
+    |> Map.merge(elixir_version)
   end
 
   defp confirm_executable(command) do
@@ -70,24 +75,29 @@ defmodule CpuInfo do
   end
 
   defp cpu_type_sub(:linux) do
-    os_info = File.read!("/etc/os-release")
-    |> String.split("\n")
-    |> Enum.reverse |> tl |> Enum.reverse
-    |> Enum.map(& String.split(&1, "="))
-    |> Enum.map(fn [k, v] -> {k, v |> String.trim("\"")} end)
-    |> Map.new()
+    os_info =
+      File.read!("/etc/os-release")
+      |> String.split("\n")
+      |> Enum.reverse()
+      |> tl
+      |> Enum.reverse()
+      |> Enum.map(&String.split(&1, "="))
+      |> Enum.map(fn [k, v] -> {k, v |> String.trim("\"")} end)
+      |> Map.new()
 
-    kernel_release = case File.read("/proc/sys/kernel/osrelease") do
-      {:ok, result} -> result
-      _ -> nil
-    end
+    kernel_release =
+      case File.read("/proc/sys/kernel/osrelease") do
+        {:ok, result} -> result
+        _ -> nil
+      end
 
     system_version = Map.get(os_info, "PRETTY_NAME")
 
-    kernel_version = case File.read("/proc/sys/kernel/version") do
-      {:ok, result} -> result
-      _ -> nil
-    end
+    kernel_version =
+      case File.read("/proc/sys/kernel/version") do
+        {:ok, result} -> result
+        _ -> nil
+      end
 
     cpu_type =
       :erlang.system_info(:system_architecture) |> List.to_string() |> String.split("-") |> hd
@@ -120,9 +130,10 @@ defmodule CpuInfo do
     t =
       Enum.map(info, &Map.get(&1, "cpu cores"))
       |> Enum.uniq()
-      |> Enum.reject(& is_nil(&1))
+      |> Enum.reject(&is_nil(&1))
       |> Enum.map(&(&1 |> hd |> String.to_integer()))
       |> Enum.sum()
+
     total_num_of_cores = if t == 0, do: 1, else: t
 
     num_of_cores_of_a_processor = div(total_num_of_cores, num_of_processors)
@@ -233,23 +244,25 @@ defmodule CpuInfo do
     confirm_executable("uname")
     confirm_executable("system_profiler")
 
-    kernel_release = try do
-      case System.cmd("uname", ["-r"]) do
-        {result, 0} -> result |> String.trim()
-        _ -> :os.version |> Tuple.to_list |> Enum.join(".")
+    kernel_release =
+      try do
+        case System.cmd("uname", ["-r"]) do
+          {result, 0} -> result |> String.trim()
+          _ -> :os.version() |> Tuple.to_list() |> Enum.join(".")
+        end
+      rescue
+        _e in ErlangError -> nil
       end
-    rescue
-      _e in ErlangError -> nil
-    end
 
-    cpu_type = try do
-      case System.cmd("uname", ["-m"]) do
-        {result, 0} -> result |> String.trim()
-        _ -> nil
+    cpu_type =
+      try do
+        case System.cmd("uname", ["-m"]) do
+          {result, 0} -> result |> String.trim()
+          _ -> nil
+        end
+      rescue
+        _e in ErlangError -> nil
       end
-    rescue
-      _e in ErlangError -> nil
-    end
 
     %{
       kernel_release: kernel_release,
@@ -359,5 +372,35 @@ defmodule CpuInfo do
 
   defp match_to_integer(message) do
     Regex.run(~r/[0-9]+/, message) |> hd |> String.to_integer()
+  end
+
+  defp cuda(:linux) do
+    case File.read("/proc/driver/nvidia/version") do
+      {:ok, _result} ->
+        smi = execute_nvidia_smi(:linux)
+
+        %{cuda: true}
+        |> Map.merge(parse_cuda_version(smi))
+
+      {:error, _reason} ->
+        %{cuda: false}
+    end
+  end
+
+  defp cuda(_) do
+    %{cuda: false}
+  end
+
+  defp execute_nvidia_smi(:linux, options \\ []) do
+    if is_nil(System.find_executable("nvidia-smi")) do
+      ""
+    else
+      {result, _code} = System.cmd("nvidia-smi", options)
+      result
+    end
+  end
+
+  defp parse_cuda_version(smi) do
+    Regex.named_captures(~r/CUDA Version: (?<cuda_version>[0-9.]+)/, smi)
   end
 end
