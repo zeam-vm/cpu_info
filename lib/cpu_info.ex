@@ -381,6 +381,12 @@ defmodule CpuInfo do
 
         %{cuda: true}
         |> Map.merge(parse_cuda_version(smi))
+        |> Map.merge(%{
+          cuda_bin: find_path("/usr/local/cuda/bin"),
+          cuda_include: find_path("/usr/local/cuda/include"),
+          cuda_lib: find_path("/usr/local/cuda/lib64"),
+          nvcc: System.find_executable("/usr/local/cuda/bin/nvcc")
+        })
 
       {:error, _reason} ->
         %{cuda: false}
@@ -402,5 +408,13 @@ defmodule CpuInfo do
 
   defp parse_cuda_version(smi) do
     Regex.named_captures(~r/CUDA Version: (?<cuda_version>[0-9.]+)/, smi)
+  end
+
+  defp find_path(path) do
+    if File.exists?(path) do
+      path
+    else
+      nil
+    end
   end
 end
