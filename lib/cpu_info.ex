@@ -21,7 +21,7 @@ defmodule CpuInfo do
     Show all profile information on CPU and the system.
   """
   def all_profile do
-    os_type()
+    profile = os_type()
     |> cpu_type_sub()
     |> Map.merge(%{
       otp_version: :erlang.system_info(:otp_release) |> List.to_string() |> String.to_integer(),
@@ -29,6 +29,13 @@ defmodule CpuInfo do
     })
     |> Map.merge(%{gcc: cc(:gcc)})
     |> Map.merge(%{clang: cc(:clang)})
+
+    if os_type() == :macos do
+      profile
+      |> Map.merge(%{apple_clang: cc(:apple_clang)})
+    else
+      profile
+    end
   end
 
   defp confirm_executable(command) do
@@ -373,12 +380,23 @@ defmodule CpuInfo do
     Regex.run(~r/[0-9]+/, message) |> hd |> String.to_integer()
   end
 
+  def cc(:apple_clang) do
+    exe = "clang"
+    [System.find_executable(exe)]
+    |> cc_sub(:apple_clang)
+  end
+
   def cc(type) do
     exe = Atom.to_string(type)
     latest_version = Map.get(@latest_versions, type)
 
     list_executable_versions(exe, 1, latest_version)
-    |> Enum.map(
+    |> cc_sub(type)
+  end
+
+  defp cc_sub(exes, type) do
+    Enum.map(
+      exes,
       &(%{bin: &1}
         |> Map.merge(
           execute_to_get_version(&1)
