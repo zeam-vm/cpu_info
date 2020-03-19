@@ -416,7 +416,7 @@ defmodule CpuInfo do
   end
 
   def cc(:apple_clang) do
-    exe = "clang"
+    exe = "/usr/bin/clang"
 
     [System.find_executable(exe)]
     |> cc_sub(:apple_clang)
@@ -480,14 +480,18 @@ defmodule CpuInfo do
   end
 
   defp key_string_to_atom(map) do
-    Map.keys(map)
-    |> Enum.map(
-      &{
-        String.to_atom(&1),
-        Map.get(map, &1)
-      }
-    )
-    |> Map.new()
+  	if is_nil(map) do
+      %{ versions: "" }
+  	else
+	   Map.keys(map)
+      |> Enum.map(
+        &{
+          String.to_atom(&1),
+          Map.get(map, &1)
+        }
+      )
+      |> Map.new()
+    end
   end
 
   defp parse_version_number(map) do
