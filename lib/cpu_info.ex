@@ -543,6 +543,7 @@ defmodule CpuInfo do
 
   defp parse_cuda_version(smi) do
     Regex.named_captures(~r/CUDA Version: (?<cuda_version>[0-9.]+)/, smi)
+    |> key_string_to_atom()
   end
 
   defp find_path(path) do
