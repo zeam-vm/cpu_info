@@ -10,10 +10,16 @@ by adding `cpu_info` to your list of dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:cpu_info, "~> 0.0.3"}
+    {:cpu_info, "~> 0.1.0"}
   ]
 end
 ```
+
+## Tested Platforms
+
+* Linux (with or without CUDA)
+* macOS
+* Nerves (compile time and execution time)
 
 Documentation can be generated with [ExDoc](https://github.com/elixir-lang/ex_doc)
 and published on [HexDocs](https://hexdocs.pm). Once published, the docs can
