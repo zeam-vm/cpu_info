@@ -23,13 +23,15 @@ defmodule CpuInfo do
   def all_profile do
     os_type = os_type()
 
-    profile = cpu_type_sub(os_type)
-    |> Map.merge(%{
-      otp_version: :erlang.system_info(:otp_release) |> List.to_string() |> String.to_integer(),
-      elixir_version: System.version()
-    })
-    |> Map.merge(%{gcc: cc(:gcc)})
-    |> Map.merge(%{clang: cc(:clang)})
+    profile =
+      cpu_type_sub(os_type)
+      |> Map.merge(%{
+        otp_version: :erlang.system_info(:otp_release) |> List.to_string() |> String.to_integer(),
+        elixir_version: System.version()
+      })
+      |> Map.merge(%{gcc: cc(:gcc)})
+      |> Map.merge(%{clang: cc(:clang)})
+      |> Map.merge(%{cc: cc_env()})
 
     if os_type == :macos do
       profile
@@ -381,8 +383,34 @@ defmodule CpuInfo do
     Regex.run(~r/[0-9]+/, message) |> hd |> String.to_integer()
   end
 
+  def cc_env() do
+    exe = System.get_env("CC")
+
+    if is_nil(exe) do
+      []
+    else
+      if String.match?(exe, ~r/clang/) do
+        [System.find_executable(exe)]
+        |> cc_sub(:clang)
+      else
+        if String.match?(exe, ~r/gcc/) do
+          [System.find_executable(exe)]
+          |> cc_sub(:gcc)
+        else
+          [
+            %{
+              bin: System.find_executable(exe),
+              type: :unknown
+            }
+          ]
+        end
+      end
+    end
+  end
+
   def cc(:apple_clang) do
     exe = "clang"
+
     [System.find_executable(exe)]
     |> cc_sub(:apple_clang)
   end
