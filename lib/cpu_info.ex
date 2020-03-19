@@ -5,6 +5,8 @@ defmodule CpuInfo do
 
   """
 
+  @latest_versions %{gcc: 9, clang: 9}
+
   defp os_type do
     case :os.type() do
       {:unix, :linux} -> :linux
@@ -19,12 +21,24 @@ defmodule CpuInfo do
     Show all profile information on CPU and the system.
   """
   def all_profile do
-    os_type()
-    |> cpu_type_sub()
-    |> Map.merge(%{
-      otp_version: :erlang.system_info(:otp_release) |> List.to_string() |> String.to_integer(),
-      elixir_version: System.version()
-    })
+    os_type = os_type()
+
+    profile =
+      cpu_type_sub(os_type)
+      |> Map.merge(%{
+        otp_version: :erlang.system_info(:otp_release) |> List.to_string() |> String.to_integer(),
+        elixir_version: System.version()
+      })
+      |> Map.merge(%{gcc: cc(:gcc)})
+      |> Map.merge(%{clang: cc(:clang)})
+      |> Map.merge(%{cc: cc_env()})
+
+    if os_type == :macos do
+      profile
+      |> Map.merge(%{apple_clang: cc(:apple_clang)})
+    else
+      profile
+    end
   end
 
   defp confirm_executable(command) do
@@ -70,24 +84,29 @@ defmodule CpuInfo do
   end
 
   defp cpu_type_sub(:linux) do
-    os_info = File.read!("/etc/os-release")
-    |> String.split("\n")
-    |> Enum.reverse |> tl |> Enum.reverse
-    |> Enum.map(& String.split(&1, "="))
-    |> Enum.map(fn [k, v] -> {k, v |> String.trim("\"")} end)
-    |> Map.new()
+    os_info =
+      File.read!("/etc/os-release")
+      |> String.split("\n")
+      |> Enum.reverse()
+      |> tl
+      |> Enum.reverse()
+      |> Enum.map(&String.split(&1, "="))
+      |> Enum.map(fn [k, v] -> {k, v |> String.trim("\"")} end)
+      |> Map.new()
 
-    kernel_release = case File.read("/proc/sys/kernel/osrelease") do
-      {:ok, result} -> result
-      _ -> nil
-    end
+    kernel_release =
+      case File.read("/proc/sys/kernel/osrelease") do
+        {:ok, result} -> result
+        _ -> nil
+      end
 
     system_version = Map.get(os_info, "PRETTY_NAME")
 
-    kernel_version = case File.read("/proc/sys/kernel/version") do
-      {:ok, result} -> result
-      _ -> nil
-    end
+    kernel_version =
+      case File.read("/proc/sys/kernel/version") do
+        {:ok, result} -> result
+        _ -> nil
+      end
 
     cpu_type =
       :erlang.system_info(:system_architecture) |> List.to_string() |> String.split("-") |> hd
@@ -120,9 +139,10 @@ defmodule CpuInfo do
     t =
       Enum.map(info, &Map.get(&1, "cpu cores"))
       |> Enum.uniq()
-      |> Enum.reject(& is_nil(&1))
+      |> Enum.reject(&is_nil(&1))
       |> Enum.map(&(&1 |> hd |> String.to_integer()))
       |> Enum.sum()
+
     total_num_of_cores = if t == 0, do: 1, else: t
 
     num_of_cores_of_a_processor = div(total_num_of_cores, num_of_processors)
@@ -233,23 +253,25 @@ defmodule CpuInfo do
     confirm_executable("uname")
     confirm_executable("system_profiler")
 
-    kernel_release = try do
-      case System.cmd("uname", ["-r"]) do
-        {result, 0} -> result |> String.trim()
-        _ -> :os.version |> Tuple.to_list |> Enum.join(".")
+    kernel_release =
+      try do
+        case System.cmd("uname", ["-r"]) do
+          {result, 0} -> result |> String.trim()
+          _ -> :os.version() |> Tuple.to_list() |> Enum.join(".")
+        end
+      rescue
+        _e in ErlangError -> nil
       end
-    rescue
-      _e in ErlangError -> nil
-    end
 
-    cpu_type = try do
-      case System.cmd("uname", ["-m"]) do
-        {result, 0} -> result |> String.trim()
-        _ -> nil
+    cpu_type =
+      try do
+        case System.cmd("uname", ["-m"]) do
+          {result, 0} -> result |> String.trim()
+          _ -> nil
+        end
+      rescue
+        _e in ErlangError -> nil
       end
-    rescue
-      _e in ErlangError -> nil
-    end
 
     %{
       kernel_release: kernel_release,
@@ -359,5 +381,124 @@ defmodule CpuInfo do
 
   defp match_to_integer(message) do
     Regex.run(~r/[0-9]+/, message) |> hd |> String.to_integer()
+  end
+
+  def cc_env() do
+    cc = System.get_env("CC")
+
+    if is_nil(cc) do
+      []
+    else
+      exe = System.find_executable(cc)
+
+      cond do
+        is_nil(exe) ->
+          %{
+            bin: cc,
+            type: :undefined
+          }
+
+        String.match?(exe, ~r/clang/) ->
+          cc_sub([exe], :clang)
+
+        String.match?(exe, ~r/gcc/) ->
+          cc_sub([exe], :gcc)
+
+        true ->
+          [
+            %{
+              bin: exe,
+              type: :unknown
+            }
+          ]
+      end
+    end
+  end
+
+  def cc(:apple_clang) do
+    exe = "/usr/bin/clang"
+
+    [System.find_executable(exe)]
+    |> cc_sub(:apple_clang)
+  end
+
+  def cc(type) do
+    exe = Atom.to_string(type)
+    latest_version = Map.get(@latest_versions, type)
+
+    list_executable_versions(exe, 1, latest_version)
+    |> cc_sub(type)
+  end
+
+  defp cc_sub(exes, type) do
+    Enum.map(
+      exes,
+      &(%{bin: &1}
+        |> Map.merge(
+          execute_to_get_version(&1)
+          |> parse_versions(type)
+          |> parse_version_number()
+        ))
+    )
+  end
+
+  defp list_executable_versions(exe, from, to) do
+    ([System.find_executable(exe)] ++
+       Enum.map(from..to, &System.find_executable(exe <> "-" <> Integer.to_string(&1))))
+    |> Enum.filter(&(&1 != nil))
+  end
+
+  defp execute_to_get_version(exe) do
+    System.cmd(exe, ["--version"], stderr_to_stdout: true)
+    |> elem(0)
+  end
+
+  defp parse_versions(result, :gcc) do
+    if String.match?(result, ~r/Copyright \(C\) [0-9]+ Free Software Foundation, Inc\./) do
+      versions = String.split(result, "\n") |> Enum.at(0)
+      %{type: :gcc, versions: versions}
+    else
+      parse_versions(result, :apple_clang)
+    end
+  end
+
+  defp parse_versions(result, :clang) do
+    if String.match?(result, ~r/Apple clang version/) do
+      parse_versions(result, :apple_clang)
+    else
+      versions = String.split(result, "\n") |> Enum.at(0)
+      %{type: :clang, versions: versions}
+    end
+  end
+
+  defp parse_versions(result, :apple_clang) do
+    %{type: :apple_clang}
+    |> Map.merge(
+      Regex.named_captures(~r/(?<versions>Apple clang version [0-9.]+ .*)\n/, result)
+      |> key_string_to_atom()
+    )
+  end
+
+  defp key_string_to_atom(map) do
+  	if is_nil(map) do
+      %{ versions: "" }
+  	else
+	   Map.keys(map)
+      |> Enum.map(
+        &{
+          String.to_atom(&1),
+          Map.get(map, &1)
+        }
+      )
+      |> Map.new()
+    end
+  end
+
+  defp parse_version_number(map) do
+    Map.merge(
+      map,
+      Regex.named_captures(~r/(?<version>[0-9]+\.[0-9.]+)/, Map.get(map, :versions))
+      |> key_string_to_atom()
+    )
   end
 end
