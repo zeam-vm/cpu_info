@@ -384,26 +384,33 @@ defmodule CpuInfo do
   end
 
   def cc_env() do
-    exe = System.get_env("CC")
+    cc = System.get_env("CC")
 
-    if is_nil(exe) do
+    if is_nil(cc) do
       []
     else
-      if String.match?(exe, ~r/clang/) do
-        [System.find_executable(exe)]
-        |> cc_sub(:clang)
-      else
-        if String.match?(exe, ~r/gcc/) do
-          [System.find_executable(exe)]
-          |> cc_sub(:gcc)
-        else
+      exe = System.find_executable(cc)
+
+      cond do
+        is_nil(exe) ->
+          %{
+            bin: cc,
+            type: :undefined
+          }
+
+        String.match?(exe, ~r/clang/) ->
+          cc_sub([exe], :clang)
+
+        String.match?(exe, ~r/gcc/) ->
+          cc_sub([exe], :gcc)
+
+        true ->
           [
             %{
-              bin: System.find_executable(exe),
+              bin: exe,
               type: :unknown
             }
           ]
-        end
       end
     end
   end
