@@ -21,8 +21,9 @@ defmodule CpuInfo do
     Show all profile information on CPU and the system.
   """
   def all_profile do
-    profile = os_type()
-    |> cpu_type_sub()
+    os_type = os_type()
+
+    profile = cpu_type_sub(os_type)
     |> Map.merge(%{
       otp_version: :erlang.system_info(:otp_release) |> List.to_string() |> String.to_integer(),
       elixir_version: System.version()
@@ -30,7 +31,7 @@ defmodule CpuInfo do
     |> Map.merge(%{gcc: cc(:gcc)})
     |> Map.merge(%{clang: cc(:clang)})
 
-    if os_type() == :macos do
+    if os_type == :macos do
       profile
       |> Map.merge(%{apple_clang: cc(:apple_clang)})
     else
