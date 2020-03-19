@@ -22,23 +22,30 @@ defmodule CpuInfo do
   """
   def all_profile do
     os_type = os_type()
+    cpu_type = cpu_type_sub(os_type)
+    cuda_info = cuda(os_type)
 
-    profile =
-      cpu_type_sub(os_type)
-      |> Map.merge(%{
-        otp_version: :erlang.system_info(:otp_release) |> List.to_string() |> String.to_integer(),
-        elixir_version: System.version()
-      })
-      |> Map.merge(%{gcc: cc(:gcc)})
+    elixir_version = %{
+      otp_version: :erlang.system_info(:otp_release) |> List.to_string() |> String.to_integer(),
+      elixir_version: System.version()
+    }
+
+    compilers =
+      %{gcc: cc(:gcc)}
       |> Map.merge(%{clang: cc(:clang)})
       |> Map.merge(%{cc: cc_env()})
 
-    if os_type == :macos do
-      profile
-      |> Map.merge(%{apple_clang: cc(:apple_clang)})
-    else
-      profile
-    end
+    compilers =
+      if os_type == :macos do
+        compilers
+        |> Map.merge(%{apple_clang: cc(:apple_clang)})
+      else
+        compilers
+      end
+
+    Map.merge(cpu_type, cuda_info)
+    |> Map.merge(elixir_version)
+    |> Map.merge(compilers)
   end
 
   defp confirm_executable(command) do
@@ -480,10 +487,10 @@ defmodule CpuInfo do
   end
 
   defp key_string_to_atom(map) do
-  	if is_nil(map) do
-      %{ versions: "" }
-  	else
-	   Map.keys(map)
+    if is_nil(map) do
+      %{versions: ""}
+    else
+      Map.keys(map)
       |> Enum.map(
         &{
           String.to_atom(&1),
@@ -500,5 +507,50 @@ defmodule CpuInfo do
       Regex.named_captures(~r/(?<version>[0-9]+\.[0-9.]+)/, Map.get(map, :versions))
       |> key_string_to_atom()
     )
+  end
+
+  defp cuda(:linux) do
+    case File.read("/proc/driver/nvidia/version") do
+      {:ok, _result} ->
+        smi = execute_nvidia_smi(:linux)
+
+        %{cuda: true}
+        |> Map.merge(parse_cuda_version(smi))
+        |> Map.merge(%{
+          cuda_bin: find_path("/usr/local/cuda/bin"),
+          cuda_include: find_path("/usr/local/cuda/include"),
+          cuda_lib: find_path("/usr/local/cuda/lib64"),
+          nvcc: System.find_executable("/usr/local/cuda/bin/nvcc")
+        })
+
+      {:error, _reason} ->
+        %{cuda: false}
+    end
+  end
+
+  defp cuda(_) do
+    %{cuda: false}
+  end
+
+  defp execute_nvidia_smi(:linux, options \\ []) do
+    if is_nil(System.find_executable("nvidia-smi")) do
+      ""
+    else
+      {result, _code} = System.cmd("nvidia-smi", options)
+      result
+    end
+  end
+
+  defp parse_cuda_version(smi) do
+    Regex.named_captures(~r/CUDA Version: (?<cuda_version>[0-9.]+)/, smi)
+    |> key_string_to_atom()
+  end
+
+  defp find_path(path) do
+    if File.exists?(path) do
+      path
+    else
+      nil
+    end
   end
 end
