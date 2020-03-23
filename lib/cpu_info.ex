@@ -13,7 +13,7 @@ defmodule CpuInfo do
       {:unix, :darwin} -> :macos
       {:unix, :freebsd} -> :freebsd
       {:win32, _} -> :windows
-      _ -> :other
+      _ -> :unknown
     end
   end
 
@@ -21,26 +21,28 @@ defmodule CpuInfo do
     Show all profile information on CPU and the system. The results are a map that contains the following keys:
 
     * **compiler:** its corresponding value is a map that contains the following keys:
+      * **apple_clang:** (only on macOS) its corresponding value is a list of maps whose values contain the information of the Apple Clang compiler that is on /usr/bin;
       * **cc_env:** its corresponding value is a list of maps whose values contain the information of the C compiler that the environment variable CC points;
       * **clang:** its corresponding value is a list of maps whose values contain the information of the Clang compilers that are executable along PATH;
-      * **gcc:** its corresponding value is a list of maps whose values contain the information of the GCC compilers that are executable along PATH;
-      * **apple_clang:** (only on macOS) its corresponding value is a list of maps whose values contain the information of the Apple Clang compiler that is on /usr/bin
+      * **gcc:** its corresponding value is a list of maps whose values contain the information of the GCC compilers that are executable along PATH
       * each information of a compiler contains the following keys:
       	* **bin:** path to the executable;
       	* **type:** :clang, :gcc, :apple_clang, :unknown, or :undefined;
       	* **release:** the release version of the release
       	* **version:** the full name of the version
     * **cpu:** its corresponding value is a map that contains the following keys:
-      * **model:** a string of the cpu model;
-      * **models:** a list of strings that corresponding to each thread (in case of Linux);
+      * **cpu_model:** a string of the cpu model;
+      * **cpu_models:** a list of strings that corresponding to each thread (in case of Linux);
+      * **cpu_type:** according to :erlang.system_info(:system_architecture);
       * **hyper_threading**: :enable or :disable;
       * **num_of_cores_of_a_processor:** the number of cores of a processor;
       * **num_of_processors:** the number of processors;
       * **num_of_threads_of_a_processor:** the number of threads of a processor;
       * **total_num_of_cores:** total number of cores;
       * **total_num_of_threads:** total number of threads;
-    * **cuda:** its corresponding value is a empty map if CUDA does not exist or a map that contains the following keys if CUDA exists:
+    * **cuda:** its corresponding value is a map that contains the following keys:
       * **bin:** path to executables of CUDA;
+      * **cuda:** existence of CUDA (true or false)
       * **include:** path to include files of CUDA;
       * **lib:** path to libraries of CUDA;
       * **nvcc:** path to the executable of nvcc;
@@ -51,26 +53,30 @@ defmodule CpuInfo do
     * **erlang:** its corresponding value is a map that contains the following keys:
       * **otp_version:** OTP version
     * **kernel:** its corresponding value is a map that contains the following keys:
-      * **os_type:** type of OS (:macos, :linux, :windows or :freebsd);
-      * **release:** the release version of kernel;
-      * **system_version:** the os or distribution name;
-      * **version:** the full name of the version of kernel
-
+      * **kernel_release:** the release version of kernel;
+      * **kernel_version:** the full name of the version of kernel;
+      * **os_type:** type of OS (:macos, :linux, :windows, :freebsd or :unknown);
+      * **system_version:** the os or distribution name
   """
   def all_profile do
     os_type = os_type()
-    cpu_type = cpu_type_sub(os_type)
-    cuda_info = cuda(os_type)
+    cpu_type = %{cpu: cpu_type_sub(os_type)}
+    kernel_type = %{kernel: kernel_type_sub(os_type)}
+    cuda_info = %{cuda: cuda(os_type)}
 
     elixir_version = %{
-      otp_version: :erlang.system_info(:otp_release) |> List.to_string() |> String.to_integer(),
-      elixir_version: System.version()
+      elixir: %{
+        version: System.version()
+      },
+      erlang: %{
+        otp_version: :erlang.system_info(:otp_release) |> List.to_string() |> String.to_integer()
+      }
     }
 
     compilers =
       %{gcc: cc(:gcc)}
       |> Map.merge(%{clang: cc(:clang)})
-      |> Map.merge(%{cc: cc_env()})
+      |> Map.merge(%{cc_env: cc_env()})
 
     compilers =
       if os_type == :macos do
@@ -80,7 +86,10 @@ defmodule CpuInfo do
         compilers
       end
 
+    compilers = %{compiler: compilers}
+
     Map.merge(cpu_type, cuda_info)
+    |> Map.merge(kernel_type)
     |> Map.merge(elixir_version)
     |> Map.merge(compilers)
   end
@@ -91,43 +100,25 @@ defmodule CpuInfo do
     end
   end
 
-  defp cpu_type_sub(:other) do
+  defp kernel_type_sub(:unknown) do
     %{
       kernel_release: :unknown,
       kernel_version: :unknown,
       system_version: :unknown,
-      cpu_type: :unknown,
-      os_type: :other,
-      cpu_model: :unknown,
-      cpu_models: :unknown,
-      num_of_processors: :unknown,
-      num_of_cores_of_a_processor: :unknown,
-      total_num_of_cores: :unknown,
-      num_of_threads_of_a_processor: :unknown,
-      total_num_of_threads: System.schedulers_online(),
-      hyper_threading: :unknown
+      os_type: :unknown
     }
   end
 
-  defp cpu_type_sub(:windows) do
+  defp kernel_type_sub(:windows) do
     %{
       kernel_release: :unknown,
       kernel_version: :unknown,
       system_version: :unknown,
-      cpu_type: :unknown,
-      os_type: :windows,
-      cpu_model: :unknown,
-      cpu_models: :unknown,
-      num_of_processors: :unknown,
-      num_of_cores_of_a_processor: :unknown,
-      total_num_of_cores: :unknown,
-      num_of_threads_of_a_processor: :unknown,
-      total_num_of_threads: System.schedulers_online(),
-      hyper_threading: :unknown
+      os_type: :windows
     }
   end
 
-  defp cpu_type_sub(:linux) do
+  defp kernel_type_sub(:linux) do
     os_info =
       File.read!("/etc/os-release")
       |> String.split("\n")
@@ -152,6 +143,107 @@ defmodule CpuInfo do
         _ -> nil
       end
 
+    %{
+      kernel_release: kernel_release,
+      kernel_version: kernel_version,
+      system_version: system_version,
+      os_type: :linux
+    }
+  end
+
+  defp kernel_type_sub(:freebsd) do
+    confirm_executable("uname")
+
+    kernel_release =
+      case System.cmd("uname", ["-r"]) do
+        {result, 0} -> result |> String.trim()
+        _ -> raise RuntimeError, message: "uname don't work."
+      end
+
+    system_version =
+      case System.cmd("uname", ["-r"]) do
+        {result, 0} -> result |> String.trim()
+        _ -> ""
+      end
+
+    kernel_version =
+      case System.cmd("uname", ["-r"]) do
+        {result, 0} -> result |> String.trim()
+        _ -> raise RuntimeError, message: "uname don't work."
+      end
+
+    %{
+      kernel_release: kernel_release,
+      kernel_version: kernel_version,
+      system_version: system_version,
+      os_type: :freebsd,
+    }
+  end
+
+  defp kernel_type_sub(:macos) do
+    confirm_executable("uname")
+    confirm_executable("system_profiler")
+
+    kernel_release =
+      try do
+        case System.cmd("uname", ["-r"]) do
+          {result, 0} -> result |> String.trim()
+          _ -> :os.version() |> Tuple.to_list() |> Enum.join(".")
+        end
+      rescue
+        _e in ErlangError -> nil
+      end
+
+    %{
+      kernel_release: kernel_release,
+    }
+    |> Map.merge(
+      try do
+        case System.cmd("system_profiler", ["SPSoftwareDataType"]) do
+          {result, 0} -> result |> detect_system_and_kernel_version()
+          _ -> nil
+        end
+      rescue
+        _e in ErlangError -> nil
+      end
+    )
+  end
+
+  defp cpu_type_sub(:unknown) do
+    cpu_type =
+      :erlang.system_info(:system_architecture) |> List.to_string() |> String.split("-") |> hd
+
+    %{
+      cpu_type: cpu_type,
+      cpu_model: :unknown,
+      cpu_models: :unknown,
+      num_of_processors: :unknown,
+      num_of_cores_of_a_processor: :unknown,
+      total_num_of_cores: :unknown,
+      num_of_threads_of_a_processor: :unknown,
+      total_num_of_threads: System.schedulers_online(),
+      hyper_threading: :unknown
+    }
+  end
+
+  defp cpu_type_sub(:windows) do
+    cpu_type =
+      :erlang.system_info(:system_architecture) |> List.to_string() |> String.split("-") |> hd
+
+    %{
+      cpu_type: cpu_type,
+      cpu_model: :unknown,
+      cpu_models: :unknown,
+      num_of_processors: :unknown,
+      num_of_cores_of_a_processor: :unknown,
+      total_num_of_cores: :unknown,
+      num_of_threads_of_a_processor: :unknown,
+      total_num_of_threads: System.schedulers_online(),
+      hyper_threading: :unknown
+    }
+  end
+
+  defp cpu_type_sub(:linux) do
     cpu_type =
       :erlang.system_info(:system_architecture) |> List.to_string() |> String.split("-") |> hd
 
@@ -211,11 +303,7 @@ defmodule CpuInfo do
       end
 
     %{
-      kernel_release: kernel_release,
-      kernel_version: kernel_version,
-      system_version: system_version,
       cpu_type: cpu_type,
-      os_type: :linux,
       cpu_model: cpu_model,
       cpu_models: cpu_models,
       num_of_processors: num_of_processors,
@@ -230,24 +318,6 @@ defmodule CpuInfo do
   defp cpu_type_sub(:freebsd) do
     confirm_executable("uname")
     confirm_executable("sysctl")
-
-    kernel_release =
-      case System.cmd("uname", ["-r"]) do
-        {result, 0} -> result |> String.trim()
-        _ -> raise RuntimeError, message: "uname don't work."
-      end
-
-    system_version =
-      case System.cmd("uname", ["-r"]) do
-        {result, 0} -> result |> String.trim()
-        _ -> ""
-      end
-
-    kernel_version =
-      case System.cmd("uname", ["-r"]) do
-        {result, 0} -> result |> String.trim()
-        _ -> raise RuntimeError, message: "uname don't work."
-      end
 
     cpu_type =
       case System.cmd("uname", ["-m"]) do
@@ -283,11 +353,7 @@ defmodule CpuInfo do
       end
 
     %{
-      kernel_release: kernel_release,
-      kernel_version: kernel_version,
-      system_version: system_version,
       cpu_type: cpu_type,
-      os_type: :freebsd,
       cpu_model: cpu_model,
       cpu_models: cpu_models,
       num_of_processors: :unknown,
@@ -303,16 +369,6 @@ defmodule CpuInfo do
     confirm_executable("uname")
     confirm_executable("system_profiler")
 
-    kernel_release =
-      try do
-        case System.cmd("uname", ["-r"]) do
-          {result, 0} -> result |> String.trim()
-          _ -> :os.version() |> Tuple.to_list() |> Enum.join(".")
-        end
-      rescue
-        _e in ErlangError -> nil
-      end
-
     cpu_type =
       try do
         case System.cmd("uname", ["-m"]) do
@@ -324,19 +380,8 @@ defmodule CpuInfo do
       end
 
     %{
-      kernel_release: kernel_release,
       cpu_type: cpu_type
     }
-    |> Map.merge(
-      try do
-        case System.cmd("system_profiler", ["SPSoftwareDataType"]) do
-          {result, 0} -> result |> detect_system_and_kernel_version()
-          _ -> nil
-        end
-      rescue
-        _e in ErlangError -> nil
-      end
-    )
     |> Map.merge(
       try do
         case System.cmd("system_profiler", ["SPHardwareDataType"]) do
@@ -560,11 +605,11 @@ defmodule CpuInfo do
         %{cuda: true}
         |> Map.merge(parse_cuda_version(smi))
         |> Map.merge(%{
-          cuda_bin: find_path("/usr/local/cuda/bin"),
-          cuda_include: find_path("/usr/local/cuda/include"),
-          cuda_lib: find_path("/usr/local/cuda/lib64"),
-          cuda_nvcc: System.find_executable("/usr/local/cuda/bin/nvcc"),
-          nvcc: System.get_env("NVCC")
+          bin: find_path("/usr/local/cuda/bin"),
+          include: find_path("/usr/local/cuda/include"),
+          lib: find_path("/usr/local/cuda/lib64"),
+          nvcc: System.find_executable("/usr/local/cuda/bin/nvcc"),
+          nvcc_env: System.get_env("NVCC")
         })
 
       {:error, _reason} ->
@@ -586,7 +631,7 @@ defmodule CpuInfo do
   end
 
   defp parse_cuda_version(smi) do
-    Regex.named_captures(~r/CUDA Version: (?<cuda_version>[0-9.]+)/, smi)
+    Regex.named_captures(~r/CUDA Version: (?<version>[0-9.]+)/, smi)
     |> key_string_to_atom()
   end
 
