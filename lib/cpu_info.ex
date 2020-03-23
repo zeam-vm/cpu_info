@@ -18,7 +18,44 @@ defmodule CpuInfo do
   end
 
   @doc """
-    Show all profile information on CPU and the system.
+    Show all profile information on CPU and the system. The results are a map that contains the following keys:
+
+    * **compiler:** its corresponding value is a map that contains the following keys:
+      * **cc_env:** its corresponding value is a list of maps whose values contain the information of the C compiler that the environment variable CC points;
+      * **clang:** its corresponding value is a list of maps whose values contain the information of the Clang compilers that are executable along PATH;
+      * **gcc:** its corresponding value is a list of maps whose values contain the information of the GCC compilers that are executable along PATH;
+      * **apple_clang:** (only on macOS) its corresponding value is a list of maps whose values contain the information of the Apple Clang compiler that is on /usr/bin
+      * each information of a compiler contains the following keys:
+      	* **bin:** path to the executable;
+      	* **type:** :clang, :gcc, :apple_clang, :unknown, or :undefined;
+      	* **release:** the release version of the release
+      	* **version:** the full name of the version
+    * **cpu:** its corresponding value is a map that contains the following keys:
+      * **model:** a string of the cpu model;
+      * **models:** a list of strings that corresponding to each thread (in case of Linux);
+      * **hyper_threading**: :enable or :disable;
+      * **num_of_cores_of_a_processor:** the number of cores of a processor;
+      * **num_of_processors:** the number of processors;
+      * **num_of_threads_of_a_processor:** the number of threads of a processor;
+      * **total_num_of_cores:** total number of cores;
+      * **total_num_of_threads:** total number of threads;
+    * **cuda:** its corresponding value is a empty map if CUDA does not exist or a map that contains the following keys if CUDA exists:
+      * **bin:** path to executables of CUDA;
+      * **include:** path to include files of CUDA;
+      * **lib:** path to libraries of CUDA;
+      * **nvcc:** path to the executable of nvcc;
+      * **nvcc_env:** the value of environment variable NVCC;
+      * **version:** CUDA version number
+    * **elixir:** its corresponding value is a map that contains the following keys:
+      * **version:** Elixir version
+    * **erlang:** its corresponding value is a map that contains the following keys:
+      * **otp_version:** OTP version
+    * **kernel:** its corresponding value is a map that contains the following keys:
+      * **os_type:** type of OS (:macos, :linux, :windows or :freebsd);
+      * **release:** the release version of kernel;
+      * **system_version:** the os or distribution name;
+      * **version:** the full name of the version of kernel
+
   """
   def all_profile do
     os_type = os_type()
