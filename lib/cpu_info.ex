@@ -46,7 +46,7 @@ defmodule CpuInfo do
       * **include:** path to include files of CUDA;
       * **lib:** path to libraries of CUDA;
       * **nvcc:** path to the executable of nvcc;
-      * **nvcc_env:** the value of environment variable NVCC;
+      * **nvcc_env:** the value of environment variable NVCC or nil if unset NVCC;
       * **version:** CUDA version number
     * **elixir:** its corresponding value is a map that contains the following keys:
       * **version:** Elixir version
