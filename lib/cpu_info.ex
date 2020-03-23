@@ -526,7 +526,8 @@ defmodule CpuInfo do
           cuda_bin: find_path("/usr/local/cuda/bin"),
           cuda_include: find_path("/usr/local/cuda/include"),
           cuda_lib: find_path("/usr/local/cuda/lib64"),
-          nvcc: System.find_executable("/usr/local/cuda/bin/nvcc")
+          cuda_nvcc: System.find_executable("/usr/local/cuda/bin/nvcc"),
+          nvcc: System.get_env("NVCC")
         })
 
       {:error, _reason} ->
