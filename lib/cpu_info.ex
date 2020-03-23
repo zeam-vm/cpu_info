@@ -176,7 +176,7 @@ defmodule CpuInfo do
       kernel_release: kernel_release,
       kernel_version: kernel_version,
       system_version: system_version,
-      os_type: :freebsd,
+      os_type: :freebsd
     }
   end
 
@@ -195,7 +195,7 @@ defmodule CpuInfo do
       end
 
     %{
-      kernel_release: kernel_release,
+      kernel_release: kernel_release
     }
     |> Map.merge(
       try do
@@ -601,6 +601,7 @@ defmodule CpuInfo do
     case File.read("/proc/driver/nvidia/version") do
       {:ok, _result} ->
         smi = execute_nvidia_smi(:linux)
+        nvcc_env = System.get_env("NVCC")
 
         %{cuda: true}
         |> Map.merge(parse_cuda_version(smi))
@@ -609,7 +610,12 @@ defmodule CpuInfo do
           include: find_path("/usr/local/cuda/include"),
           lib: find_path("/usr/local/cuda/lib64"),
           nvcc: System.find_executable("/usr/local/cuda/bin/nvcc"),
-          nvcc_env: System.get_env("NVCC")
+          nvcc_env:
+            if is_nil(nvcc_env) do
+              nil
+            else
+              System.find_executable(nvcc_env)
+            end
         })
 
       {:error, _reason} ->
