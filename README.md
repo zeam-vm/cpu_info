@@ -10,7 +10,7 @@ by adding `cpu_info` to your list of dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:cpu_info, "~> 0.1.0"}
+    {:cpu_info, "~> 0.1.1"}
   ]
 end
 ```
