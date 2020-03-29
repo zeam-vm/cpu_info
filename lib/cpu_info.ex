@@ -21,15 +21,15 @@ defmodule CpuInfo do
     Show all profile information on CPU and the system. The results are a map that contains the following keys:
 
     * **compiler:** its corresponding value is a map that contains the following keys:
-      * **apple_clang:** (only on macOS) its corresponding value is a list of maps whose values contain the information of the Apple Clang compiler that is on /usr/bin;
+      * **apple_clang:** (only on macOS) its corresponding value is a list of maps whose values contain the information of the Apple Clang compiler that is on `/usr/bin`;
       * **cc_env:** its corresponding value is a list of a map whose values contain the information of the C compiler that the environment variable `CC` points;
       * **cflags_env:** this is the value of the environment variable `CFLAGS`;
-      * **clang:** its corresponding value is a list of maps whose values contain the information of the Clang compilers that are executable along PATH;
-      * **clang++:** its corresponding value is a list of maps whose values contain the information of the Clang++ compilers that are executable along PATH;
+      * **clang:** its corresponding value is a list of maps whose values contain the information of the Clang compilers that are executable along `PATH`;
+      * **clang++:** its corresponding value is a list of maps whose values contain the information of the Clang++ compilers that are executable along `PATH`;
       * **cxx_env** its corresponding value is a list of a map whose values contain the information of the C++ compiler that the environment variable `CXX` points; 
       * **cxxflags_env:** this is the value of the environment variable `CXXFLAGS`;
-      * **gcc:** its corresponding value is a list of maps whose values contain the information of the GCC compilers that are executable along PATH;
-      * **g++:** its corresponding value is a list of maps whose values contain the information of the G++ compilers that are executable along PATH;
+      * **gcc:** its corresponding value is a list of maps whose values contain the information of the GCC compilers that are executable along `PATH`;
+      * **g++:** its corresponding value is a list of maps whose values contain the information of the G++ compilers that are executable along `PATH`;
       * **ldflags_env:** this is the value of the environment variable `LDFLAGS`
       * each information of a compiler contains the following keys:
       	* **bin:** path to the executable;
@@ -37,7 +37,7 @@ defmodule CpuInfo do
       	* **release:** the release version of the release
       	* **version:** the full name of the version
     * **cpu:** its corresponding value is a map that contains the following keys:
-      * **cpu_model:** a string of the cpu model;
+      * **cpu_model:** a string of the cpu model;s
       * **cpu_models:** a list of strings that corresponding to each thread (in case of Linux);
       * **cpu_type:** according to :erlang.system_info(:system_architecture);
       * **hyper_threading**: :enable or :disable;
