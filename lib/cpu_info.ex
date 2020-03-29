@@ -83,7 +83,8 @@ defmodule CpuInfo do
       |> Map.merge(%{"g++": cc(:"g++")})
       |> Map.merge(%{clang: cc(:clang)})
       |> Map.merge(%{"clang++": cc(:"clang++")})
-      |> Map.merge(%{cc_env: cc_env()})
+      |> Map.merge(%{cc_env: cc_env("CC")})
+      |> Map.merge(%{cxx_env: cc_env("CXX")})
 
     compilers =
       if os_type == :macos do
@@ -486,43 +487,16 @@ defmodule CpuInfo do
     Regex.run(~r/[0-9]+/, message) |> hd |> String.to_integer()
   end
 
-  def cc_env() do
-    cc = System.get_env("CC")
-
-    if is_nil(cc) do
-      []
-    else
-      exe = System.find_executable(cc)
-
-      cond do
-        is_nil(exe) ->
-          %{
-            bin: cc,
-            type: :undefined
-          }
-
-        String.match?(exe, ~r/clang/) ->
-          cc_sub([exe], :clang)
-
-        String.match?(exe, ~r/gcc/) ->
-          cc_sub([exe], :gcc)
-
-        true ->
-          [
-            %{
-              bin: exe,
-              type: :unknown
-            }
-          ]
-      end
-    end
+  def cc_env(env) do
+    System.get_env(env)
+    |> cc_env_sub()
   end
 
-  def cc_env_sub(nil) do
+  defp cc_env_sub(nil) do
     []
   end
 
-  def cc_env_sub(cc) do
+  defp cc_env_sub(cc) do
     exe = System.find_executable(cc)
 
     cond do
