@@ -22,6 +22,7 @@ defmodule CpuInfo do
 
     * **compiler:** its corresponding value is a map that contains the following keys:
       * **apple_clang:** (only on macOS) its corresponding value is a list of maps whose values contain the information of the Apple Clang compiler that is on `/usr/bin`;
+      * **apple_clang++:** (only on macOS) its corresponding value is a list of maps whose values contain the information of the Apple Clang++ compiler that is on `/usr/bin`;
       * **cc_env:** its corresponding value is a list of a map whose values contain the information of the C compiler that the environment variable `CC` points;
       * **cflags_env:** this is the value of the environment variable `CFLAGS`;
       * **clang:** its corresponding value is a list of maps whose values contain the information of the Clang compilers that are executable along `PATH`;
