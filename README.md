@@ -10,14 +10,14 @@ by adding `cpu_info` to your list of dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:cpu_info, "~> 0.1.1"}
+    {:cpu_info, "~> 0.1.2"}
   ]
 end
 ```
 
 ## Tested Platforms
 
-* Linux (with or without CUDA)
+* Linux (with or without CUDA, including Jetson Nano)
 * macOS
 * Nerves (compile time and execution time)
 
