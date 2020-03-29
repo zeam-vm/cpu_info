@@ -5,7 +5,7 @@ defmodule CpuInfo do
 
   """
 
-  @latest_versions %{gcc: 9, clang: 9}
+  @latest_versions %{gcc: 9, "g++": 9, clang: 9, "clang++": 9}
 
   defp os_type do
     case :os.type() do
@@ -22,9 +22,15 @@ defmodule CpuInfo do
 
     * **compiler:** its corresponding value is a map that contains the following keys:
       * **apple_clang:** (only on macOS) its corresponding value is a list of maps whose values contain the information of the Apple Clang compiler that is on /usr/bin;
-      * **cc_env:** its corresponding value is a list of maps whose values contain the information of the C compiler that the environment variable CC points;
+      * **cc_env:** its corresponding value is a list of a map whose values contain the information of the C compiler that the environment variable `CC` points;
+      * **cflags_env:** this is the value of the environment variable `CFLAGS`;
       * **clang:** its corresponding value is a list of maps whose values contain the information of the Clang compilers that are executable along PATH;
-      * **gcc:** its corresponding value is a list of maps whose values contain the information of the GCC compilers that are executable along PATH
+      * **clang++:** its corresponding value is a list of maps whose values contain the information of the Clang++ compilers that are executable along PATH;
+      * **cxx_env** its corresponding value is a list of a map whose values contain the information of the C++ compiler that the environment variable `CXX` points; 
+      * **cxxflags_env:** this is the value of the environment variable `CXXFLAGS`;
+      * **gcc:** its corresponding value is a list of maps whose values contain the information of the GCC compilers that are executable along PATH;
+      * **g++:** its corresponding value is a list of maps whose values contain the information of the G++ compilers that are executable along PATH;
+      * **ldflags_env:** this is the value of the environment variable `LDFLAGS`
       * each information of a compiler contains the following keys:
       	* **bin:** path to the executable;
       	* **type:** :clang, :gcc, :apple_clang, :unknown, or :undefined;
@@ -74,13 +80,16 @@ defmodule CpuInfo do
 
     compilers =
       %{gcc: cc(:gcc)}
+      |> Map.merge(%{"g++": cc(:"g++")})
       |> Map.merge(%{clang: cc(:clang)})
+      |> Map.merge(%{"clang++": cc(:"clang++")})
       |> Map.merge(%{cc_env: cc_env()})
 
     compilers =
       if os_type == :macos do
         compilers
         |> Map.merge(%{apple_clang: cc(:apple_clang)})
+        |> Map.merge(%{"apple_clang++": cc(:"apple_clang++")})
       else
         compilers
       end
@@ -509,11 +518,54 @@ defmodule CpuInfo do
     end
   end
 
+  def cc_env_sub(nil) do
+    []
+  end
+
+  def cc_env_sub(cc) do
+    exe = System.find_executable(cc)
+
+    cond do
+      is_nil(exe) ->
+        %{
+          bin: cc,
+          type: :undefined
+        }
+
+      String.match?(exe, ~r/clang\+\+/) ->
+        cc_sub([exe], :"clang++")
+
+      String.match?(exe, ~r/clang/) ->
+        cc_sub([exe], :clang)
+
+      String.match?(exe, ~r/g\+\+/) ->
+        cc_sub([exe], :"g++")
+
+      String.match?(exe, ~r/gcc/) ->
+        cc_sub([exe], :gcc)
+
+      true ->
+        [
+          %{
+            bin: exe,
+            type: :unknown
+          }
+        ]
+    end
+  end
+
   def cc(:apple_clang) do
     exe = "/usr/bin/clang"
 
     [System.find_executable(exe)]
     |> cc_sub(:apple_clang)
+  end
+
+  def cc(:"apple_clang++") do
+    exe = "/usr/bin/clang++"
+
+    [System.find_executable(exe)]
+    |> cc_sub(:"apple_clang++")
   end
 
   def cc(type) do
@@ -556,6 +608,15 @@ defmodule CpuInfo do
     end
   end
 
+  defp parse_versions(result, :"g++") do
+    if String.match?(result, ~r/Copyright \(C\) [0-9]+ Free Software Foundation, Inc\./) do
+      versions = String.split(result, "\n") |> Enum.at(0)
+      %{type: :"g++", versions: versions}
+    else
+      parse_versions(result, :"apple_clang++")
+    end
+  end
+
   defp parse_versions(result, :clang) do
     if String.match?(result, ~r/Apple clang version/) do
       parse_versions(result, :apple_clang)
@@ -565,8 +626,25 @@ defmodule CpuInfo do
     end
   end
 
+  defp parse_versions(result, :"clang++") do
+    if String.match?(result, ~r/Apple clang version/) do
+      parse_versions(result, :"apple_clang++")
+    else
+      versions = String.split(result, "\n") |> Enum.at(0)
+      %{type: :"clang++", versions: versions}
+    end
+  end
+
   defp parse_versions(result, :apple_clang) do
     %{type: :apple_clang}
+    |> Map.merge(
+      Regex.named_captures(~r/(?<versions>Apple clang version [0-9.]+ .*)\n/, result)
+      |> key_string_to_atom()
+    )
+  end
+
+  defp parse_versions(result, :"apple_clang++") do
+    %{type: :"apple_clang++"}
     |> Map.merge(
       Regex.named_captures(~r/(?<versions>Apple clang version [0-9.]+ .*)\n/, result)
       |> key_string_to_atom()
@@ -605,7 +683,7 @@ defmodule CpuInfo do
           bin: find_path("/usr/local/cuda/bin"),
           include: find_path("/usr/local/cuda/include"),
           lib: find_path("/usr/local/cuda/lib64"),
-          nvcc: System.find_executable("/usr/local/cuda/bin/nvcc"),
+          nvcc: System.find_executable("/usr/local/cuda/bin/nvcc")
         })
 
       {:error, _reason} ->
