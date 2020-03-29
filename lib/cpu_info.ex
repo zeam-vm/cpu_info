@@ -46,7 +46,6 @@ defmodule CpuInfo do
       * **include:** path to include files of CUDA;
       * **lib:** path to libraries of CUDA;
       * **nvcc:** path to the executable of nvcc;
-      * **nvcc_env:** the value of environment variable NVCC or nil if unset NVCC;
       * **version:** CUDA version number
     * **elixir:** its corresponding value is a map that contains the following keys:
       * **version:** Elixir version
@@ -598,24 +597,15 @@ defmodule CpuInfo do
   end
 
   defp cuda(:linux) do
-    case File.read("/proc/driver/nvidia/version") do
-      {:ok, _result} ->
-        smi = execute_nvidia_smi(:linux)
-        nvcc_env = System.get_env("NVCC")
-
+    case File.read("/usr/local/cuda/version.txt") do
+      {:ok, cuda_version} ->
         %{cuda: true}
-        |> Map.merge(parse_cuda_version(smi))
+        |> Map.merge(parse_cuda_version(cuda_version))
         |> Map.merge(%{
           bin: find_path("/usr/local/cuda/bin"),
           include: find_path("/usr/local/cuda/include"),
           lib: find_path("/usr/local/cuda/lib64"),
           nvcc: System.find_executable("/usr/local/cuda/bin/nvcc"),
-          nvcc_env:
-            if is_nil(nvcc_env) do
-              nil
-            else
-              System.find_executable(nvcc_env)
-            end
         })
 
       {:error, _reason} ->
@@ -627,17 +617,8 @@ defmodule CpuInfo do
     %{cuda: false}
   end
 
-  defp execute_nvidia_smi(:linux, options \\ []) do
-    if is_nil(System.find_executable("nvidia-smi")) do
-      ""
-    else
-      {result, _code} = System.cmd("nvidia-smi", options)
-      result
-    end
-  end
-
-  defp parse_cuda_version(smi) do
-    Regex.named_captures(~r/CUDA Version: (?<version>[0-9.]+)/, smi)
+  defp parse_cuda_version(cuda_version) do
+    Regex.named_captures(~r/CUDA Version (?<version>[0-9.]+)/, cuda_version)
     |> key_string_to_atom()
   end
 
