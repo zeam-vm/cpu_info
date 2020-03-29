@@ -85,6 +85,9 @@ defmodule CpuInfo do
       |> Map.merge(%{"clang++": cc(:"clang++")})
       |> Map.merge(%{cc_env: cc_env("CC")})
       |> Map.merge(%{cxx_env: cc_env("CXX")})
+      |> Map.merge(%{cflags_env: flags_env("CFLAGS")})
+      |> Map.merge(%{cxxflags_env: flags_env("CXXFLAGS")})
+      |> Map.merge(%{ldflags_env: flags_env("LDFLAGS")})
 
     compilers =
       if os_type == :macos do
@@ -485,6 +488,15 @@ defmodule CpuInfo do
 
   defp match_to_integer(message) do
     Regex.run(~r/[0-9]+/, message) |> hd |> String.to_integer()
+  end
+
+  def flags_env(env) do
+  	flags = System.get_env(env)
+  	if is_nil(flags) do
+  		""
+  	else
+  		flags
+  	end
   end
 
   def cc_env(env) do
