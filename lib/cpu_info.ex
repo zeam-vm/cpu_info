@@ -63,12 +63,15 @@ defmodule CpuInfo do
       * **kernel_version:** the full name of the version of kernel;
       * **os_type:** type of OS (:macos, :linux, :windows, :freebsd or :unknown);
       * **system_version:** the os or distribution name
+    * **metal:** its corresponding value is a map that contains the following keys:
+      * **metal:** existence of Metal (true or false)
   """
   def all_profile do
     os_type = os_type()
     cpu_type = %{cpu: cpu_type_sub(os_type)}
     kernel_type = %{kernel: kernel_type_sub(os_type)}
     cuda_info = %{cuda: cuda(os_type)}
+    metal_info = %{metal: metal(os_type)}
 
     elixir_version = %{
       elixir: %{
@@ -102,6 +105,7 @@ defmodule CpuInfo do
     compilers = %{compiler: compilers}
 
     Map.merge(cpu_type, cuda_info)
+    |> Map.merge(metal_info)
     |> Map.merge(kernel_type)
     |> Map.merge(elixir_version)
     |> Map.merge(compilers)
@@ -693,5 +697,32 @@ defmodule CpuInfo do
     else
       nil
     end
+  end
+
+  defp metal(:macos) do
+    confirm_executable("system_profiler")
+    try do
+      case System.cmd("system_profiler", ["SPDisplaysDataType"]) do
+        {result, 0} -> result |> detect_metal_supported()
+        _ -> %{metal: false}
+      end
+    rescue
+      _e in ErlangError -> %{metal: false}
+    end
+  end
+
+  defp metal(_) do
+    %{metal: false}
+  end
+
+  defp detect_metal_supported(message) do
+    trimmed_message = message |> split_trim
+
+    %{
+      metal:
+        trimmed_message
+        |> Enum.map(&String.match?(&1, ~r/Metal: Supported/))
+        |> Enum.reduce(false, fn x, acc -> x or acc end)
+    }
   end
 end
