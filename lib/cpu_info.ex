@@ -148,7 +148,7 @@ defmodule CpuInfo do
 
     kernel_release =
       case File.read("/proc/sys/kernel/osrelease") do
-        {:ok, result} -> result
+        {:ok, result} -> String.trim(result)
         _ -> nil
       end
 
@@ -156,7 +156,7 @@ defmodule CpuInfo do
 
     kernel_version =
       case File.read("/proc/sys/kernel/version") do
-        {:ok, result} -> result
+        {:ok, result} -> String.trim(result)
         _ -> nil
       end
 
