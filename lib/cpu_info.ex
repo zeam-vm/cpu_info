@@ -609,7 +609,7 @@ defmodule CpuInfo do
   end
 
   defp parse_versions(result, :clang) do
-    if String.match?(result, ~r/Apple clang version/) do
+    if String.match?(result, ~r/Apple/) do
       parse_versions(result, :apple_clang)
     else
       versions = String.split(result, "\n") |> Enum.at(0)
@@ -618,7 +618,7 @@ defmodule CpuInfo do
   end
 
   defp parse_versions(result, :"clang++") do
-    if String.match?(result, ~r/Apple clang version/) do
+    if String.match?(result, ~r/Apple/) do
       parse_versions(result, :"apple_clang++")
     else
       versions = String.split(result, "\n") |> Enum.at(0)
@@ -629,7 +629,7 @@ defmodule CpuInfo do
   defp parse_versions(result, :apple_clang) do
     %{type: :apple_clang}
     |> Map.merge(
-      Regex.named_captures(~r/(?<versions>Apple clang version [0-9.]+ .*)\n/, result)
+      Regex.named_captures(~r/(?<versions>Apple .* version [0-9.]+ .*)\n/, result)
       |> key_string_to_atom()
     )
   end
@@ -637,7 +637,7 @@ defmodule CpuInfo do
   defp parse_versions(result, :"apple_clang++") do
     %{type: :"apple_clang++"}
     |> Map.merge(
-      Regex.named_captures(~r/(?<versions>Apple clang version [0-9.]+ .*)\n/, result)
+      Regex.named_captures(~r/(?<versions>Apple .* version [0-9.]+ .*)\n/, result)
       |> key_string_to_atom()
     )
   end
