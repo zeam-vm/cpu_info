@@ -10,7 +10,7 @@ by adding `cpu_info` to your list of dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:cpu_info, "~> 0.2.1"}
+    {:cpu_info, "~> 0.2.2"}
   ]
 end
 ```
@@ -18,7 +18,7 @@ end
 ## Tested Platforms
 
 * Linux (with or without CUDA, including Jetson Nano)
-* macOS (with or without Metal)
+* macOS (with or without Metal, on x86_64 and Arm)
 * Nerves (compile time and execution time)
 
 Documentation can be generated with [ExDoc](https://github.com/elixir-lang/ex_doc)
