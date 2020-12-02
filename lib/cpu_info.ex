@@ -751,7 +751,7 @@ defmodule CpuInfo do
     %{
       metal:
         trimmed_message
-        |> Enum.map(&String.match?(&1, ~r/Metal: Supported/))
+        |> Enum.map(&String.match?(&1, ~r/Metal( Family)?: Supported/))
         |> Enum.reduce(false, fn x, acc -> x or acc end)
     }
   end
