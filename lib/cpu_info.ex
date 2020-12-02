@@ -436,7 +436,7 @@ defmodule CpuInfo do
     trimmed_message = message |> split_trim
 
     cpu_model =
-      Enum.filter(trimmed_message, &String.match?(&1, ~r/Processor Name/))
+      Enum.filter(trimmed_message, &String.match?(&1, ~r/(Processor Name|Chip)/))
       |> hd
       |> String.split()
       |> Enum.slice(2..-1)
@@ -445,14 +445,26 @@ defmodule CpuInfo do
     cpu_models = [cpu_model]
 
     num_of_processors =
-      Enum.filter(trimmed_message, &String.match?(&1, ~r/Number of Processors/))
-      |> hd
-      |> match_to_integer()
+      trimmed_message
+      |> Enum.filter(&String.match?(&1, ~r/Number of Processors/))
+      |> case do
+        [match] -> match_to_integer(match)
+        [] -> 1
+      end
 
-    total_num_of_cores =
-      Enum.filter(trimmed_message, &String.match?(&1, ~r/Total Number of Cores/))
+    num_of_cores =
+      trimmed_message
+      |> Enum.filter(&String.match?(&1, ~r/Total Number of Cores/))
       |> hd
-      |> match_to_integer()
+
+    {total_num_of_cores, num_of_pcores, num_of_ecores} =
+      cond do
+        String.match?(num_of_cores, ~r/performance .* efficiency/) ->
+          parse_cores(num_of_cores)
+
+        true ->
+          {match_to_integer(num_of_cores), 0, 0}
+      end
 
     num_of_cores_of_a_processor = div(total_num_of_cores, num_of_processors)
 
@@ -483,7 +495,23 @@ defmodule CpuInfo do
       total_num_of_cores: total_num_of_cores,
       num_of_threads_of_a_processor: num_of_threads_of_a_processor,
       total_num_of_threads: total_num_of_threads,
-      hyper_threading: ht
+      hyper_threading: ht,
+      num_of_pcores: num_of_pcores,
+      num_of_ecores: num_of_ecores
+    }
+  end
+
+  defp parse_cores(num_of_cores) do
+    map_cores =
+      Regex.named_captures(
+        ~r/Total Number of Cores: (?<total_num_of_cores>[0-9]+) \((?<num_of_pcores>[0-9]+) performance and (?<num_of_ecores>[0-9]+) efficiency\)/,
+        num_of_cores
+      )
+
+    {
+      map_cores |> Map.get("total_num_of_cores", 1) |> String.to_integer(),
+      map_cores |> Map.get("num_of_pcores", 0) |> String.to_integer(),
+      map_cores |> Map.get("num_of_ecores", 0) |> String.to_integer()
     }
   end
 
@@ -496,12 +524,13 @@ defmodule CpuInfo do
   end
 
   def flags_env(env) do
-  	flags = System.get_env(env)
-  	if is_nil(flags) do
-  		""
-  	else
-  		flags
-  	end
+    flags = System.get_env(env)
+
+    if is_nil(flags) do
+      ""
+    else
+      flags
+    end
   end
 
   def cc_env(env) do
@@ -701,6 +730,7 @@ defmodule CpuInfo do
 
   defp metal(:macos) do
     confirm_executable("system_profiler")
+
     try do
       case System.cmd("system_profiler", ["SPDisplaysDataType"]) do
         {result, 0} -> result |> detect_metal_supported()
